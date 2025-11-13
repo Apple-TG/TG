@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, Request, Response
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from deep_translator import GoogleTranslator
+from libretranslatepy import LibreTranslateAPI
 
 # ---------- 环境变量 ----------
 TOKEN = os.getenv("BOT_TOKEN")
@@ -15,30 +15,32 @@ WEBHOOK_URL = f"{os.getenv('RENDER_EXTERNAL_URL')}{WEBHOOK_PATH}"
 app = FastAPI()
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
-# ---------- 翻译函数（最终版） ----------
+# ---------- 翻译器（免费公共服务器） ----------
+translator = LibreTranslateAPI("https://libretranslate.de")
+
+# ---------- 翻译函数 ----------
 async def translate_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
     try:
-        detected = GoogleTranslator(source='auto').detect(text)
-        if isinstance(detected, str):
-            src_lang = detected
-        elif isinstance(detected, list) and detected:
-            src_lang = detected[0]
-        else:
-            src_lang = "unknown"
-
-        target_lang = "en" if src_lang.startswith("zh") else "zh-CN"
-        result = GoogleTranslator(source='auto', target=target_lang).translate(text)
-
+        # 检测语言
+        detect_result = translator.detect(text)
+        src_lang = detect_result[0]["language"]  # 如 'en', 'zh'
+        
+        # 决定目标语言
+        target_lang = "en" if src_lang == "zh" else "zh"
+        
+        # 执行翻译
+        result = translator.translate(text, src_lang, target_lang)
+        
         await update.message.reply_text(
             f"检测语言：{src_lang}\n"
             f"翻译为：{target_lang}\n"
             f"结果：{result}"
         )
     except Exception as e:
-        await update.message.reply_text(f"翻译出错：{str(e)}")
+        await update.message.reply_text(f"翻译出错：{str(e)}\n（公共服务器可能繁忙，稍后重试）")
 
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, translate_message))
 
@@ -83,4 +85,4 @@ async def home():
 
 @app.get("/test")
 async def test():
-    return {"status": "ok", "webhook_url": WEBHOOK_URL}
+    return {"status": "ok", "webhook_url": WEBHOOK_URL, "translator": "LibreTranslate (免费)"}
