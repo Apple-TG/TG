@@ -1,5 +1,6 @@
-fastapi
-uvicorn[standard]
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
 python-telegram-bot==20.8
-googletrans==4.0.0-rc1
-gunicorn
+httpx==0.27.0
+googletrans==3.1.0a0
+gunicorn==22.0.0
