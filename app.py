@@ -1,4 +1,5 @@
 import os
+import re  # 新增：用于语言检测
 from fastapi import FastAPI, Request, Response
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
@@ -15,28 +16,47 @@ WEBHOOK_URL = f"{os.getenv('RENDER_EXTERNAL_URL')}{WEBHOOK_PATH}"
 app = FastAPI()
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
-# ---------- 翻译函数 ----------
+# ---------- 翻译函数（优化版） ----------
 async def translate_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
     try:
-        # 简单判断：含中文 → 翻译为英文，否则翻译为中文
-        is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text)
-        from_lang = "zh" if is_chinese else "en"
-        to_lang = "en" if is_chinese else "zh"
+        # 改进语言检测：检查中文汉字或英文
+        has_chinese = bool(re.search(r'[\u4e00-\u9fff]', text))
+        has_english = bool(re.search(r'[a-zA-Z]', text))
+        
+        if has_chinese:
+            from_lang = "zh"
+            to_lang = "en"
+            detected_lang = "zh"
+        elif has_english:
+            from_lang = "en"
+            to_lang = "zh"
+            detected_lang = "en"
+        else:
+            # 其他语言/符号，默认英→中
+            from_lang = "en"
+            to_lang = "zh"
+            detected_lang = "unknown"
         
         # 创建翻译器
         translator = Translator(from_lang=from_lang, to_lang=to_lang)
         result = translator.translate(text)
         
         await update.message.reply_text(
-            f"检测语言：{from_lang}\n"
+            f"检测语言：{detected_lang}\n"
             f"翻译为：{to_lang}\n"
             f"结果：{result}"
         )
     except Exception as e:
-        await update.message.reply_text(f"翻译出错：{str(e)}\n（网络波动，稍后重试）")
+        # 强制回复错误（调试用）
+        await update.message.reply_text(
+            f"翻译出错：{str(e)}\n"
+            f"原消息：{text[:50]}...\n"
+            f"（可能是网络限流，稍后重试）"
+        )
+        print(f"翻译错误日志: {e}")  # Render 日志可见
 
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, translate_message))
 
@@ -81,4 +101,4 @@ async def home():
 
 @app.get("/test")
 async def test():
-    return {"status": "ok", "webhook_url": WEBHOOK_URL, "translator": "translate (稳定)"}
+    return {"status": "ok", "webhook_url": WEBHOOK_URL, "translator": "translate (优化版)"}
