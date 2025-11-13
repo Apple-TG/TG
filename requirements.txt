@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+python-telegram-bot==20.8
+googletrans==4.0.0-rc1
+gunicorn
