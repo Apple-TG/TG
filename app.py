@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI, Request, Response
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from libretranslatepy import LibreTranslateAPI
+from translate import Translator
 
 # ---------- 环境变量 ----------
 TOKEN = os.getenv("BOT_TOKEN")
@@ -15,32 +15,28 @@ WEBHOOK_URL = f"{os.getenv('RENDER_EXTERNAL_URL')}{WEBHOOK_PATH}"
 app = FastAPI()
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
-# ---------- 翻译器（免费公共服务器） ----------
-translator = LibreTranslateAPI("https://libretranslate.de")
-
 # ---------- 翻译函数 ----------
 async def translate_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
     try:
-        # 检测语言（新版 API）
-        detect_result = translator.detect(text)
-        src_lang = detect_result[0]["language"] if detect_result else "unknown"
+        # 简单判断：含中文 → 翻译为英文，否则翻译为中文
+        is_chinese = any('\u4e00' <= c <= '\u9fff' for c in text)
+        from_lang = "zh" if is_chinese else "en"
+        to_lang = "en" if is_chinese else "zh"
         
-        # 决定目标语言
-        target_lang = "en" if src_lang == "zh" else "zh"
-        
-        # 执行翻译
-        result = translator.translate(text, src_lang, target_lang)
+        # 创建翻译器
+        translator = Translator(from_lang=from_lang, to_lang=to_lang)
+        result = translator.translate(text)
         
         await update.message.reply_text(
-            f"检测语言：{src_lang}\n"
-            f"翻译为：{target_lang}\n"
+            f"检测语言：{from_lang}\n"
+            f"翻译为：{to_lang}\n"
             f"结果：{result}"
         )
     except Exception as e:
-        await update.message.reply_text(f"翻译出错：{str(e)}\n（公共服务器可能繁忙，稍后重试）")
+        await update.message.reply_text(f"翻译出错：{str(e)}\n（网络波动，稍后重试）")
 
 bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, translate_message))
 
@@ -85,4 +81,4 @@ async def home():
 
 @app.get("/test")
 async def test():
-    return {"status": "ok", "webhook_url": WEBHOOK_URL, "translator": "LibreTranslate v1.7.3 (免费)"}
+    return {"status": "ok", "webhook_url": WEBHOOK_URL, "translator": "translate (稳定)"}
