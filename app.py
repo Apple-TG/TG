@@ -24,9 +24,9 @@ async def translate_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not text:
         return
     try:
-        # 检测语言
+        # 检测语言（新版 API）
         detect_result = translator.detect(text)
-        src_lang = detect_result[0]["language"]  # 如 'en', 'zh'
+        src_lang = detect_result[0]["language"] if detect_result else "unknown"
         
         # 决定目标语言
         target_lang = "en" if src_lang == "zh" else "zh"
@@ -85,4 +85,4 @@ async def home():
 
 @app.get("/test")
 async def test():
-    return {"status": "ok", "webhook_url": WEBHOOK_URL, "translator": "LibreTranslate (免费)"}
+    return {"status": "ok", "webhook_url": WEBHOOK_URL, "translator": "LibreTranslate v1.7.3 (免费)"}
