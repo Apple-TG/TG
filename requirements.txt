@@ -1,5 +1,5 @@
 fastapi==0.110.0
 uvicorn[standard]==0.29.0
 python-telegram-bot==21.6
-libretranslatepy==1.7.3
+translate==3.6.1
 gunicorn==22.0.0
