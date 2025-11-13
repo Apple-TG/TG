@@ -3,31 +3,39 @@ import asyncio
 from fastapi import FastAPI, Request, Response
 from telegram import Update
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
-from googletrans import Translator
+from deep_translator import GoogleTranslator  # 新翻译库
 
 # 读取机器人 Token（Render 会自动填）
 TOKEN = os.getenv("BOT_TOKEN")
 WEBHOOK_PATH = "/webhook"
 WEBHOOK_URL = os.getenv("RENDER_EXTERNAL_URL") + WEBHOOK_PATH
 
-# 初始化
-translator = Translator()
+# 初始化新翻译器
+translator = GoogleTranslator(source='auto', target='en')  # 默认英文，但我们会动态改
+
 app = FastAPI()
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
-# 翻译函数（和原来一样）
+# 翻译函数（改版）
 async def translate_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
-    detected = translator.detect(text)
-    src_lang = detected.lang
-    target_lang = "en" if src_lang.startswith("zh") else "zh-cn"
+    
+    # 检测语言（deep-translator 的方式）
+    detected = translator.translate(text, return_all=False, detected_language=True)
+    src_lang = detected['lang']
+    
+    # 决定目标语言
+    target_lang = "en" if src_lang.startswith("zh") else "zh-CN"
+    
+    # 执行翻译
     result = translator.translate(text, dest=target_lang)
+    
     await update.message.reply_text(
         f"检测语言：{src_lang}\n"
         f"翻译为：{target_lang}\n"
-        f"结果：{result.text}"
+        f"结果：{result}"
     )
 
 # 注册消息处理
