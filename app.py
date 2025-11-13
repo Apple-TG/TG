@@ -15,18 +15,20 @@ WEBHOOK_URL = f"{os.getenv('RENDER_EXTERNAL_URL')}{WEBHOOK_PATH}"
 app = FastAPI()
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
-# ---------- 翻译函数 ----------
+# ---------- 翻译函数（已修复） ----------
 async def translate_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
     try:
-        translator = GoogleTranslator(source='auto')
-        detected = translator.detect(text)
-        target_lang = "en" if detected.startswith("zh") else "zh-CN"
+        translator = GoogleTranslator(source='auto', target='en')
+        detected_langs = translator.detect_langs(text)
+        src_lang = detected_langs[0].lang if detected_langs else "unknown"
+        target_lang = "en" if src_lang.startswith("zh") else "zh-CN"
         result = translator.translate(text, target=target_lang)
+        
         await update.message.reply_text(
-            f"检测语言：{detected}\n"
+            f"检测语言：{src_lang}\n"
             f"翻译为：{target_lang}\n"
             f"结果：{result}"
         )
@@ -52,7 +54,6 @@ async def webhook(request: Request):
 async def on_startup():
     print("正在初始化 Application...")
     try:
-        # 关键三步：initialize → start → set_webhook
         await bot_app.initialize()
         await bot_app.start()
         await bot_app.bot.delete_webhook(drop_pending_updates=True)
