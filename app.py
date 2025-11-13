@@ -15,18 +15,23 @@ WEBHOOK_URL = f"{os.getenv('RENDER_EXTERNAL_URL')}{WEBHOOK_PATH}"
 app = FastAPI()
 bot_app = ApplicationBuilder().token(TOKEN).build()
 
-# ---------- 翻译函数（已修复） ----------
+# ---------- 翻译函数（最终版） ----------
 async def translate_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if not text:
         return
     try:
-        translator = GoogleTranslator(source='auto', target='en')
-        detected_langs = translator.detect_langs(text)
-        src_lang = detected_langs[0].lang if detected_langs else "unknown"
+        detected = GoogleTranslator(source='auto').detect(text)
+        if isinstance(detected, str):
+            src_lang = detected
+        elif isinstance(detected, list) and detected:
+            src_lang = detected[0]
+        else:
+            src_lang = "unknown"
+
         target_lang = "en" if src_lang.startswith("zh") else "zh-CN"
-        result = translator.translate(text, target=target_lang)
-        
+        result = GoogleTranslator(source='auto', target=target_lang).translate(text)
+
         await update.message.reply_text(
             f"检测语言：{src_lang}\n"
             f"翻译为：{target_lang}\n"
